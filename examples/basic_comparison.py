@@ -8,7 +8,7 @@ def main():
     model1, tokenizer1, model2, tokenizer2 = load_models(model1_name, model2_name, device)
 
     prompt = "Once upon a time"
-    generated_text = generate_from_logit_diff(model1, tokenizer1, model2, tokenizer2, prompt)
+    generated_text = generate_from_logit_diff(model1, tokenizer1, model2, tokenizer2, prompt, max_new_tokens=50)
     print(generated_text)
 
 if __name__ == "__main__":

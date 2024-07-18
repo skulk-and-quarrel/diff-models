@@ -13,10 +13,19 @@ class LogitDifferenceProcessor(LogitsProcessor):
             # Decode using tokenizer1, then encode using tokenizer2
             text = self.tokenizer1.decode(input_ids[0])
             
-            input_ids2 = self.tokenizer2.encode(text, return_tensors="pt", padding=True, truncation=True, max_length=input_ids.shape[1]).to(input_ids.device)
-            outputs2 = self.model2(input_ids2)
+            encoded_input2 = self.tokenizer2.encode_plus(
+                text, 
+                return_tensors="pt", 
+                truncation=True,
+                max_length=input_ids.shape[1]
+            )
+            input_ids2 = encoded_input2['input_ids'].to(input_ids.device)
+            
+            # Create attention mask based on the actual sequence length
+            attention_mask2 = torch.ones_like(input_ids2)
+            
+            outputs2 = self.model2(input_ids2, attention_mask=attention_mask2)
             logits2 = outputs2.logits[:, -1, :]
-            self.cache[text] = logits2
 
         # Calculate logit difference while respecting vocabulary differences
         logit_diff = self.calculate_logit_difference(scores, logits2)
@@ -33,6 +42,6 @@ class LogitDifferenceProcessor(LogitsProcessor):
         for token, idx1 in vocab1.items():
             if token in vocab2:
                 idx2 = vocab2[token]
-                logit_diff[0, idx1] = scores2[0, idx1] - scores1[0, idx2]
+                logit_diff[0, idx1] = scores2[0, idx2] - scores1[0, idx1]
 
         return logit_diff
