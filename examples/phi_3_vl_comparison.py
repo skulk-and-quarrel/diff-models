@@ -36,7 +36,7 @@ def main():
     # Prepare input in the style of Phi-3 models
     messages = [
         {"role": "system", "content": "You are a helpful AI assistant."},
-        {"role": "user", "content": "Can you provide ways to eat combinations of bananas and dragonfruits?"},
+        {"role": "user", "content": "What do giraffes look like?"},
     ]
 
     prompt = tokenizer1.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)

@@ -1,5 +1,7 @@
+
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
+from llama_cpp import Llama
 
 def get_default_device():
     if torch.cuda.is_available():
@@ -15,7 +17,7 @@ def ensure_padding_token(tokenizer):
         print(f"Set padding token to: {tokenizer.pad_token}")
     return tokenizer
 
-def load_models(model1_name, model2_name, device=None):
+def load_transformers_models(model1_name, model2_name, device=None):
     if device is None:
         device = get_default_device()
     
@@ -28,5 +30,10 @@ def load_models(model1_name, model2_name, device=None):
     model2 = AutoModelForCausalLM.from_pretrained(model2_name).to(device)
     tokenizer2 = AutoTokenizer.from_pretrained(model2_name)
     tokenizer2 = ensure_padding_token(tokenizer2)
-    
+
     return model1, tokenizer1, model2, tokenizer2
+
+def load_llama_models(model1_path, model2_path):
+    model1 = Llama(model_path=model1_path)
+    model2 = Llama(model_path=model2_path)
+    return model1, model2
