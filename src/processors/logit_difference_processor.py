@@ -1,34 +1,38 @@
 import torch
 from transformers import LogitsProcessor
+from typing import Dict, Any
 
 class LogitDifferenceProcessor(LogitsProcessor):
-    def __init__(self, model2, tokenizer2):
+    def __init__(self, model2, tokenizer1, tokenizer2):
         self.model2 = model2
+        self.tokenizer1 = tokenizer1
         self.tokenizer2 = tokenizer2
 
     def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.FloatTensor:
         with torch.no_grad():
-            input_ids2 = self.tokenizer2.encode(self.tokenizer2.decode(input_ids[0]), return_tensors="pt")
+            # Decode using tokenizer1, then encode using tokenizer2
+            text = self.tokenizer1.decode(input_ids[0])
+            
+            input_ids2 = self.tokenizer2.encode(text, return_tensors="pt", padding=True, truncation=True, max_length=input_ids.shape[1]).to(input_ids.device)
             outputs2 = self.model2(input_ids2)
             logits2 = outputs2.logits[:, -1, :]
+            self.cache[text] = logits2
 
-        aligned_scores, aligned_logits2 = self.align_logits(scores, logits2)
-        logit_diff = aligned_scores - aligned_logits2
+        # Calculate logit difference while respecting vocabulary differences
+        logit_diff = self.calculate_logit_difference(scores, logits2)
 
         return logit_diff
 
-    def align_logits(self, scores, logits2):
-        vocab1 = set(range(scores.shape[-1]))
-        vocab2 = set(range(logits2.shape[-1]))
-        all_tokens = vocab1 | vocab2
+    def calculate_logit_difference(self, scores1: torch.FloatTensor, scores2: torch.FloatTensor) -> torch.FloatTensor:
+        vocab1 = self.tokenizer1.get_vocab()
+        vocab2 = self.tokenizer2.get_vocab()
 
-        aligned_scores = torch.zeros(len(all_tokens), device=scores.device)
-        aligned_logits2 = torch.zeros(len(all_tokens), device=logits2.device)
+        # Initialize logit difference with negative infinity
+        logit_diff = torch.full_like(scores1, float('-inf'))
 
-        for i in all_tokens:
-            if i in vocab1:
-                aligned_scores[i] = scores[0, i]
-            if i in vocab2:
-                aligned_logits2[i] = logits2[0, i]
+        for token, idx1 in vocab1.items():
+            if token in vocab2:
+                idx2 = vocab2[token]
+                logit_diff[0, idx1] = scores2[0, idx1] - scores1[0, idx2]
 
-        return aligned_scores.unsqueeze(0), aligned_logits2.unsqueeze(0)
+        return logit_diff
