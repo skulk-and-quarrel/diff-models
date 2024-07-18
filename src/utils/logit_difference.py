@@ -1,9 +1,8 @@
 from abc import ABC, abstractmethod
 import logging
-from transformers import AutoModelForCausalLM, PreTrainedTokenizer, LogitsProcessorList
+from transformers import AutoModelForCausalLM, PreTrainedTokenizer, LogitsProcessorList, PreTrainedModel
 from llama_cpp import Llama
 import numpy as np
-
 
 class LogitDifferenceError(Exception):
     """Custom exception for LogitDifferenceGenerator errors"""
@@ -110,8 +109,14 @@ class LlamaLogitDifferenceGenerator(LogitDifferenceGenerator):
         logging.info("Generation completed successfully")
         return generated_text
 
+def is_causal_lm_model(model):
+    return (
+        isinstance(model, PreTrainedModel) and
+        hasattr(model, 'lm_head')
+    )
+
 def create_logit_difference_generator(model1, tokenizer1, model2, tokenizer2) -> LogitDifferenceGenerator:
-    if isinstance(model1, AutoModelForCausalLM) and isinstance(model2, AutoModelForCausalLM):
+    if is_causal_lm_model(model1) and is_causal_lm_model(model2):
         return TransformersLogitDifferenceGenerator(model1, tokenizer1, model2, tokenizer2)
     elif isinstance(model1, Llama) and isinstance(model2, Llama):
         return LlamaLogitDifferenceGenerator(model1, model2)
